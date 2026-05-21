@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Register – AMPATH Incident Portal{% endblock %}
+{% block content %}
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <i class="fas fa-user-plus fa-3x mb-3"></i>
+      <h2 class="fw-bold">Create Account</h2>
+      <p class="text-white-50 mb-0">AMPATH Incident Reporting Portal</p>
+    </div>
+    <div class="auth-body">
+      <form method="POST" action="{{ url_for('register') }}" novalidate>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Full Name</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-user"></i></span>
+            <input type="text" name="name" class="form-control" placeholder="Your full name" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Email Address</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+            <input type="email" name="email" class="form-control" placeholder="your@ampath.org" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Department</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-building"></i></span>
+            <select name="department" class="form-select" required>
+              <option value="">Select your department</option>
+              <option>ICT Department</option>
+              <option>HIV/AIDS Programme</option>
+              <option>Oncology</option>
+              <option>Nutrition</option>
+              <option>Mental Health</option>
+              <option>Finance</option>
+              <option>Administration</option>
+              <option>Nursing</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Password</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+            <input type="password" name="password" class="form-control" placeholder="Minimum 8 characters" required minlength="8">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 fw-bold py-2">
+          <i class="fas fa-user-plus me-2"></i>Create Account
+        </button>
+      </form>
+      <hr class="my-4">
+      <p class="text-center text-muted mb-0">
+        Already have an account?
+        <a href="{{ url_for('login') }}" class="text-primary fw-semibold">Sign in here</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

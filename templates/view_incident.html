@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Incident #{{ incident.id }} – AMPATH Portal{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <div class="mb-3">
+      <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+      </a>
+    </div>
+
+    <!-- Incident Details -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold">
+          <i class="fas fa-file-alt me-2 text-primary"></i>Incident #{{ incident.id }}
+        </h5>
+        <div>
+          <span class="badge severity-{{ incident.severity | lower }} me-2">{{ incident.severity }}</span>
+          <span class="badge status-{{ incident.status | lower | replace(' ', '-') }}">{{ incident.status }}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="small text-muted fw-semibold">INCIDENT TYPE</label>
+            <p class="fw-semibold mb-0">{{ incident.incident_type }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="small text-muted fw-semibold">REPORTED BY</label>
+            <p class="fw-semibold mb-0">{{ incident.reporter_name }} – {{ incident.department }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="small text-muted fw-semibold">LOCATION / SYSTEM</label>
+            <p class="fw-semibold mb-0">{{ incident.location or 'Not specified' }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="small text-muted fw-semibold">DATE REPORTED</label>
+            <p class="fw-semibold mb-0">{{ incident.created_at.strftime('%d %B %Y, %H:%M') }}</p>
+          </div>
+          <div class="col-12">
+            <label class="small text-muted fw-semibold">DESCRIPTION</label>
+            <div class="bg-light rounded p-3">
+              {{ incident.description }}
+            </div>
+          </div>
+          {% if incident.admin_notes %}
+          <div class="col-12">
+            <label class="small text-muted fw-semibold">ICT TEAM NOTES</label>
+            <div class="bg-light rounded p-3 border-start border-primary border-3">
+              {{ incident.admin_notes }}
+            </div>
+          </div>
+          {% endif %}
+          {% if incident.assigned_to %}
+          <div class="col-md-6">
+            <label class="small text-muted fw-semibold">ASSIGNED TO</label>
+            <p class="fw-semibold mb-0">{{ incident.assigned_to }}</p>
+          </div>
+          {% endif %}
+          {% if incident.updated_at %}
+          <div class="col-md-6">
+            <label class="small text-muted fw-semibold">LAST UPDATED</label>
+            <p class="fw-semibold mb-0">{{ incident.updated_at.strftime('%d %B %Y, %H:%M') }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Update Panel -->
+    {% if session.role == 'admin' %}
+    <div class="card shadow-sm border-warning">
+      <div class="card-header bg-warning bg-opacity-10">
+        <h6 class="mb-0 fw-bold"><i class="fas fa-tools me-2"></i>Admin: Update Incident</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('update_incident', id=incident.id) }}">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option {% if incident.status == 'Open' %}selected{% endif %}>Open</option>
+                <option {% if incident.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option {% if incident.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Assign To</label>
+              <input type="text" name="assignee" class="form-control form-control-sm"
+                value="{{ incident.assigned_to or '' }}" placeholder="Team member name">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Admin Notes</label>
+              <textarea name="admin_notes" class="form-control form-control-sm" rows="3"
+                placeholder="Add notes, actions taken, or resolution details...">{{ incident.admin_notes or '' }}</textarea>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-warning btn-sm fw-semibold">
+                <i class="fas fa-save me-1"></i>Save Update
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}

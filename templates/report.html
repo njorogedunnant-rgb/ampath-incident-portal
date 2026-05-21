@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Report Incident – AMPATH Portal{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header">
+        <h5 class="mb-0 fw-bold">
+          <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Report a Cybersecurity Incident
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info small">
+          <i class="fas fa-info-circle me-2"></i>
+          Please provide as much detail as possible. All reports are handled confidentially by the ICT team.
+        </div>
+        <form method="POST" action="{{ url_for('report_incident') }}" novalidate>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Incident Type <span class="text-danger">*</span></label>
+            <select name="incident_type" class="form-select" required>
+              <option value="">Select incident type</option>
+              <option>Phishing / Suspicious Email</option>
+              <option>Unauthorised Access Attempt</option>
+              <option>Malware / Virus Detected</option>
+              <option>Data Breach / Leak</option>
+              <option>Suspicious Network Activity</option>
+              <option>System Compromise</option>
+              <option>Lost / Stolen Device</option>
+              <option>Password Compromise</option>
+              <option>Ransomware</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Severity Level <span class="text-danger">*</span></label>
+            <div class="row g-2">
+              {% for level, desc, color in [
+                ('Low', 'Minor issue, no immediate risk', 'success'),
+                ('Medium', 'Moderate risk, monitor closely', 'warning'),
+                ('High', 'Significant threat, act soon', 'orange'),
+                ('Critical', 'Immediate action required!', 'danger')
+              ] %}
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="severity" id="sev_{{ level }}" value="{{ level }}" required>
+                <label class="btn btn-outline-{{ color }} w-100 text-start p-2" for="sev_{{ level }}">
+                  <strong class="d-block">{{ level }}</strong>
+                  <small class="text-muted">{{ desc }}</small>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Location / System Affected</label>
+            <input type="text" name="location" class="form-control" placeholder="e.g. Ward 5 Workstation, Finance Office, OpenMRS Login">
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+            <textarea name="description" class="form-control" rows="5"
+              placeholder="Describe what happened, when you noticed it, and any other relevant details..." required minlength="20"></textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary fw-semibold px-4">
+              <i class="fas fa-paper-plane me-2"></i>Submit Report
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

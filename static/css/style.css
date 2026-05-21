@@ -1,0 +1,88 @@
+/* ── Variables ─────────────────────────────────────────────────── */
+:root {
+  --primary: #0F4C81;
+  --primary-light: #E8F0FB;
+  --dark: #1A1A2E;
+  --body-bg: #F4F6FB;
+}
+
+/* ── Base ──────────────────────────────────────────────────────── */
+body { background: var(--body-bg); font-family: 'Segoe UI', Arial, sans-serif; }
+
+/* ── Navbar ────────────────────────────────────────────────────── */
+.navbar { background: var(--dark); padding: 0.75rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+.navbar-brand { font-size: 1.1rem; letter-spacing: 0.5px; }
+.btn-report { background: var(--primary); border: none; color: white; }
+.btn-report:hover { background: #0a3860; color: white; }
+
+/* ── Main Content ──────────────────────────────────────────────── */
+.main-content { min-height: calc(100vh - 60px); }
+
+/* ── Auth Pages ────────────────────────────────────────────────── */
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1A1A2E 0%, #0F4C81 100%);
+  padding: 2rem;
+}
+.auth-card {
+  width: 100%;
+  max-width: 430px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.auth-header {
+  background: var(--dark);
+  color: white;
+  text-align: center;
+  padding: 2rem 2rem 1.5rem;
+}
+.auth-header i { color: #93C5FD; }
+.auth-body { background: white; padding: 2rem; }
+
+/* ── Stat Cards ─────────────────────────────────────────────────── */
+.stat-card {
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.stat-icon { font-size: 2rem; opacity: 0.2; position: absolute; right: 1rem; top: 1rem; }
+.stat-value { font-size: 2.2rem; font-weight: 700; line-height: 1; }
+.stat-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+.stat-total   { background: #EFF6FF; color: var(--primary); }
+.stat-open    { background: #FFF7ED; color: #C2410C; }
+.stat-critical { background: #FEF2F2; color: #B91C1C; }
+.stat-resolved { background: #F0FDF4; color: #15803D; }
+
+/* ── Severity Badges ─────────────────────────────────────────────── */
+.badge { font-size: 0.75rem; padding: 0.4em 0.7em; font-weight: 600; border-radius: 6px; }
+.severity-low      { background: #DCFCE7; color: #166534; }
+.severity-medium   { background: #FEF9C3; color: #854D0E; }
+.severity-high     { background: #FFEDD5; color: #9A3412; }
+.severity-critical { background: #FEE2E2; color: #991B1B; }
+
+/* ── Status Badges ───────────────────────────────────────────────── */
+.status-open        { background: #DBEAFE; color: #1E40AF; }
+.status-in-progress { background: #FEF9C3; color: #854D0E; }
+.status-resolved    { background: #DCFCE7; color: #166534; }
+
+/* ── Table ───────────────────────────────────────────────────────── */
+.table th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6B7280; }
+.table td { vertical-align: middle; font-size: 0.9rem; }
+.table-hover tbody tr:hover { background: var(--primary-light); }
+
+/* ── Card ────────────────────────────────────────────────────────── */
+.card { border: none; border-radius: 12px; }
+.card-header { background: white; border-bottom: 1px solid #E5E7EB; padding: 1rem 1.25rem; border-radius: 12px 12px 0 0 !important; }
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn-primary { background: var(--primary); border-color: var(--primary); }
+.btn-primary:hover { background: #0a3860; border-color: #0a3860; }
+.btn-xs { padding: 0.2rem 0.6rem; font-size: 0.78rem; }
