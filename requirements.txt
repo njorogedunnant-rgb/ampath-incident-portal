@@ -2,6 +2,7 @@ bcrypt==4.1.2
 blinker==1.9.0
 click==8.4.0
 Flask==2.3.3
+Flask-Mail==0.10.0
 Flask-MySQLdb==1.0.1
 gunicorn==26.0.0
 itsdangerous==2.2.0
