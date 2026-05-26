@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_mysqldb import MySQL
-from flask_mail import Mail, Message
+import resend
 from itsdangerous import URLSafeTimedSerializer
 import bcrypt
 import os
@@ -22,14 +22,8 @@ app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 mysql = MySQL(app)
 # ── Mail Configuration ────────────────────────────────────────────────────────
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_USE_SSL'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_EMAIL')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
-mail = Mail(app)
+resend.api_key = os.environ.get("RESEND_API_KEY")
 s = URLSafeTimedSerializer(app.secret_key)
 # ── Auth Decorators ───────────────────────────────────────────────────────────
 def login_required(f):
@@ -252,20 +246,7 @@ def forgot_password():
                 token = s.dumps(email, salt='password-reset')
                 reset_url = url_for('reset_password_page', token=token, _external=True)
                 try:
-                    msg = Message('Reset Your AMPATH Portal Password',
-                        sender=app.config['MAIL_USERNAME'],
-                        recipients=[email])
-                    msg.body = f'''Hello {user['name']},
-
-You requested a password reset for your AMPATH Incident Portal account.
-
-Click the link below to reset your password (valid for 30 minutes):
-{reset_url}
-
-If you did not request this, please ignore this email.
-
-AMPATH ICT Team'''
-                    mail.send(msg)
+                resend.Emails.send({"from": "onboarding@resend.dev", "to": email, "subject": "Reset Your AMPATH Portal Password", "text": body})
                 except Exception as e:
                     print(f"Mail error: {e}")
                     flash(f'Mail error: {str(e)}', 'danger')
