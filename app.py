@@ -27,34 +27,7 @@ resend.api_key = os.environ.get("RESEND_API_KEY")
 s = URLSafeTimedSerializer(app.secret_key)
 # ── Auth Decorators ───────────────────────────────────────────────────────────
 
-def calculate_priority(urgency, impact):
-    matrix = {
-        ('High', 'High'): 'P1',
-        ('High', 'Medium'): 'P2',
-        ('Medium', 'High'): 'P2',
-        ('High', 'Low'): 'P3',
-        ('Medium', 'Medium'): 'P3',
-        ('Low', 'High'): 'P3',
-        ('Medium', 'Low'): 'P4',
-        ('Low', 'Medium'): 'P4',
-        ('Low', 'Low'): 'P5',
-    }
-    return matrix.get((urgency, impact), 'P5')
 
-
-def calculate_priority(urgency, impact):
-    matrix = {
-        ('High', 'High'): 'P1',
-        ('High', 'Medium'): 'P2',
-        ('Medium', 'High'): 'P2',
-        ('High', 'Low'): 'P3',
-        ('Medium', 'Medium'): 'P3',
-        ('Low', 'High'): 'P3',
-        ('Medium', 'Low'): 'P4',
-        ('Low', 'Medium'): 'P4',
-        ('Low', 'Low'): 'P5',
-    }
-    return matrix.get((urgency, impact), 'P5')
 
 
 def calculate_priority(urgency, impact):
@@ -218,24 +191,22 @@ def report_incident():
         description   = request.form.get('description', '').strip()
         severity      = request.form.get('severity', '')
         location      = request.form.get('location', '').strip()
-
+        urgency       = request.form.get('urgency', 'Low')
+        impact        = request.form.get('impact', 'Low')
+        priority      = calculate_priority(urgency, impact)
         if not all([incident_type, description, severity]):
             flash('Please fill in all required fields.', 'danger')
             return render_template('report.html')
-
         cur = mysql.connection.cursor()
         cur.execute(
-            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status) VALUES (%s, %s, %s, %s, %s, 'Open')",
-            (session['user_id'], incident_type, description, severity, location)
+            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status, urgency, impact, priority) VALUES (%s, %s, %s, %s, %s, 'Open', %s, %s, %s)",
+            (session['user_id'], incident_type, description, severity, location, urgency, impact, priority)
         )
         mysql.connection.commit()
         cur.close()
         flash('Incident reported successfully! The ICT team has been notified.', 'success')
         return redirect(url_for('dashboard'))
-
     return render_template('report.html')
-
-# ── Update Incident (Admin) ───────────────────────────────────────────────────
 
 @app.route('/incident/<int:id>/update', methods=['POST'])
 @admin_required
