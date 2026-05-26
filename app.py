@@ -291,11 +291,11 @@ def trends():
     
     # Incidents per month
     cur.execute("""
-        SELECT DATE_FORMAT(created_at, '%b %Y') as month, 
+        SELECT DATE_FORMAT(MIN(created_at), '%b %Y') as month, 
                COUNT(*) as count 
         FROM incidents 
         GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-        ORDER BY MIN(created_at) DESC
+        ORDER BY DATE_FORMAT(created_at, '%Y-%m') DESC
         LIMIT 6
     """)
     monthly = cur.fetchall()
