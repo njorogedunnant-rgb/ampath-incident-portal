@@ -245,20 +245,21 @@ def forgot_password():
             if user:
                 token = s.dumps(email, salt='password-reset')
                 reset_url = url_for('reset_password_page', token=token, _external=True)
-                try:
-                resend.Emails.send({"from": "onboarding@resend.dev", "to": email, "subject": "Reset Your AMPATH Portal Password", "text": body})
-                except Exception as e:
-                    print(f"Mail error: {e}")
-                    flash(f'Mail error: {str(e)}', 'danger')
-                    return render_template('forgot_password.html')
+                body = "Hello " + user['name'] + ",\n\nClick the link below to reset your password (valid for 30 minutes):\n" + reset_url + "\n\nAMPATH ICT Team"
+                resend.Emails.send({
+                    "from": "onboarding@resend.dev",
+                    "to": email,
+                    "subject": "Reset Your AMPATH Portal Password",
+                    "text": body
+                })
         except Exception as e:
-            print(f"DB error: {e}")
+            print(f"Error: {e}")
             flash(f'Error: {str(e)}', 'danger')
             return render_template('forgot_password.html')
-
         flash('If that email exists, a reset link has been sent.', 'info')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
+
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password_page(token):
     try:
