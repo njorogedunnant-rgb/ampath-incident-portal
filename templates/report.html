@@ -59,6 +59,25 @@
             <input type="text" name="location" class="form-control" placeholder="e.g. Ward 5 Workstation, Finance Office, OpenMRS Login">
           </div>
 
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Urgency <span class="text-danger">*</span></label>
+              <select name="urgency" class="form-select" required>
+                <option value="Low">Low – Can wait</option>
+                <option value="Medium">Medium – Needs attention soon</option>
+                <option value="High">High – Needs immediate attention</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Impact <span class="text-danger">*</span></label>
+              <select name="impact" class="form-select" required>
+                <option value="Low">Low – Affects one person</option>
+                <option value="Medium">Medium – Affects a department</option>
+                <option value="High">High – Affects entire organisation</option>
+              </select>
+            </div>
+          </div>
+
           <div class="mb-4">
             <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
             <textarea name="description" class="form-control" rows="5"

@@ -94,6 +94,7 @@
             <th>Type</th>
             {% if session.role == 'admin' %}<th>Reporter</th>{% endif %}
             <th>Severity</th>
+            <th>Priority</th>
             <th>Status</th>
             <th>Date</th>
             <th>Action</th>
@@ -108,6 +109,7 @@
             <td class="small text-muted">{{ i.reporter_name }}</td>
             {% endif %}
             <td><span class="badge severity-{{ i.severity | lower }}">{{ i.severity }}</span></td>
+            <td><span class="badge priority-{{ i.priority | lower if i.priority else 'p5' }}">{{ i.priority or 'P5' }}</span></td>
             <td><span class="badge status-{{ i.status | lower | replace(' ', '-') }}">{{ i.status }}</span></td>
             <td class="small text-muted">{{ i.created_at.strftime('%d %b %Y') }}</td>
             <td>

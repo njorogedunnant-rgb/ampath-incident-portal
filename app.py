@@ -26,6 +26,51 @@ mysql = MySQL(app)
 resend.api_key = os.environ.get("RESEND_API_KEY")
 s = URLSafeTimedSerializer(app.secret_key)
 # ── Auth Decorators ───────────────────────────────────────────────────────────
+
+def calculate_priority(urgency, impact):
+    matrix = {
+        ('High', 'High'): 'P1',
+        ('High', 'Medium'): 'P2',
+        ('Medium', 'High'): 'P2',
+        ('High', 'Low'): 'P3',
+        ('Medium', 'Medium'): 'P3',
+        ('Low', 'High'): 'P3',
+        ('Medium', 'Low'): 'P4',
+        ('Low', 'Medium'): 'P4',
+        ('Low', 'Low'): 'P5',
+    }
+    return matrix.get((urgency, impact), 'P5')
+
+
+def calculate_priority(urgency, impact):
+    matrix = {
+        ('High', 'High'): 'P1',
+        ('High', 'Medium'): 'P2',
+        ('Medium', 'High'): 'P2',
+        ('High', 'Low'): 'P3',
+        ('Medium', 'Medium'): 'P3',
+        ('Low', 'High'): 'P3',
+        ('Medium', 'Low'): 'P4',
+        ('Low', 'Medium'): 'P4',
+        ('Low', 'Low'): 'P5',
+    }
+    return matrix.get((urgency, impact), 'P5')
+
+
+def calculate_priority(urgency, impact):
+    matrix = {
+        ('High', 'High'): 'P1',
+        ('High', 'Medium'): 'P2',
+        ('Medium', 'High'): 'P2',
+        ('High', 'Low'): 'P3',
+        ('Medium', 'Medium'): 'P3',
+        ('Low', 'High'): 'P3',
+        ('Medium', 'Low'): 'P4',
+        ('Low', 'Medium'): 'P4',
+        ('Low', 'Low'): 'P5',
+    }
+    return matrix.get((urgency, impact), 'P5')
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):

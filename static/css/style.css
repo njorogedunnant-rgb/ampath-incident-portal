@@ -86,3 +86,10 @@ body { background: var(--body-bg); font-family: 'Segoe UI', Arial, sans-serif; }
 .btn-primary { background: var(--primary); border-color: var(--primary); }
 .btn-primary:hover { background: #0a3860; border-color: #0a3860; }
 .btn-xs { padding: 0.2rem 0.6rem; font-size: 0.78rem; }
+
+/* Priority Badges */
+.priority-p1 { background: #7F1D1D; color: #FEE2E2; }
+.priority-p2 { background: #991B1B; color: #FEE2E2; }
+.priority-p3 { background: #C2410C; color: #FFEDD5; }
+.priority-p4 { background: #D97706; color: #FEF9C3; }
+.priority-p5 { background: #15803D; color: #DCFCE7; }
