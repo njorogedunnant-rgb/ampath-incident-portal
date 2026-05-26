@@ -30,6 +30,22 @@ s = URLSafeTimedSerializer(app.secret_key)
 
 
 
+
+def auto_assign(incident_type):
+    routing = {
+        'Malware / Virus Detected': 'Victor',
+        'Ransomware': 'Victor',
+        'Phishing / Suspicious Email': 'Donald',
+        'Unauthorised Access Attempt': 'Donald',
+        'Data Breach / Leak': 'Donald',
+        'Password Compromise': 'Donald',
+        'Suspicious Network Activity': 'Alvin',
+        'System Compromise': 'Denzel',
+        'Lost / Stolen Device': 'Babu',
+        'Other': 'Alvin',
+    }
+    return routing.get(incident_type, 'Alvin')
+
 def calculate_priority(urgency, impact):
     matrix = {
         ('High', 'High'): 'P1',
@@ -194,13 +210,14 @@ def report_incident():
         urgency       = request.form.get('urgency', 'Low')
         impact        = request.form.get('impact', 'Low')
         priority      = calculate_priority(urgency, impact)
+        assigned_to   = auto_assign(incident_type)
         if not all([incident_type, description, severity]):
             flash('Please fill in all required fields.', 'danger')
             return render_template('report.html')
         cur = mysql.connection.cursor()
         cur.execute(
-            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status, urgency, impact, priority) VALUES (%s, %s, %s, %s, %s, 'Open', %s, %s, %s)",
-            (session['user_id'], incident_type, description, severity, location, urgency, impact, priority)
+            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status, urgency, impact, priority, assigned_to) VALUES (%s, %s, %s, %s, %s, 'Open', %s, %s, %s, %s)",
+            (session['user_id'], incident_type, description, severity, location, urgency, impact, priority, assigned_to)
         )
         mysql.connection.commit()
         cur.close()
