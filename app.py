@@ -386,5 +386,40 @@ def trends():
         recent=recent
     )
 
+
+@app.route('/incident/<int:id>/feedback', methods=['GET', 'POST'])
+@login_required
+def feedback(id):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM incidents WHERE id = %s AND user_id = %s", (id, session['user_id']))
+    incident = cur.fetchone()
+
+    if not incident:
+        flash('Incident not found or access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if incident['status'] != 'Resolved':
+        flash('You can only give feedback on resolved incidents.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    if incident['feedback_rating']:
+        flash('You have already submitted feedback for this incident.', 'info')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        rating = request.form.get('rating')
+        comment = request.form.get('comment', '').strip()
+        cur.execute(
+            "UPDATE incidents SET feedback_rating = %s, feedback_comment = %s WHERE id = %s",
+            (rating, comment, id)
+        )
+        mysql.connection.commit()
+        cur.close()
+        flash('Thank you for your feedback!', 'success')
+        return redirect(url_for('dashboard'))
+
+    cur.close()
+    return render_template('feedback.html', incident=incident)
+
 if __name__ == '__main__':
     app.run(debug=True)
