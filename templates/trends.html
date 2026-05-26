@@ -135,7 +135,7 @@ new Chart(monthlyCtx, {
         datasets: [{
             label: 'Incidents',
             data: [{% for m in monthly %}{{ m.count }}{% if not loop.last %},{% endif %}{% endfor %}],
-            backgroundColor: '#0F4C81',
+            backgroundColor: '#1E40AF',
             borderRadius: 6
         }]
     },
@@ -150,7 +150,7 @@ new Chart(statusCtx, {
         labels: [{% for s in by_status %}'{{ s.status }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
             data: [{% for s in by_status %}{{ s.count }}{% if not loop.last %},{% endif %}{% endfor %}],
-            backgroundColor: ['#DBEAFE', '#FEF9C3', '#DCFCE7'],
+            backgroundColor: ['#1E40AF', '#D97706', '#15803D'],
             borderWidth: 2
         }]
     },
@@ -166,7 +166,7 @@ new Chart(severityCtx, {
         datasets: [{
             label: 'Count',
             data: [{% for s in by_severity %}{{ s.count }}{% if not loop.last %},{% endif %}{% endfor %}],
-            backgroundColor: ['#DCFCE7', '#FEF9C3', '#FFEDD5', '#FEE2E2'],
+            backgroundColor: ['#15803D', '#D97706', '#C2410C', '#991B1B'],
             borderRadius: 6
         }]
     },
@@ -182,7 +182,7 @@ new Chart(typeCtx, {
         datasets: [{
             label: 'Count',
             data: [{% for t in by_type %}{{ t.count }}{% if not loop.last %},{% endif %}{% endfor %}],
-            backgroundColor: '#0F4C81',
+            backgroundColor: ['#1E40AF', '#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#DBEAFE', '#EFF6FF'],
             borderRadius: 6
         }]
     },
