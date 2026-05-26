@@ -283,5 +283,75 @@ def reset_password_page(token):
         return redirect(url_for('login'))
 
     return render_template('reset_password.html', token=token)
+
+@app.route('/trends')
+@admin_required
+def trends():
+    cur = mysql.connection.cursor()
+    
+    # Incidents per month
+    cur.execute("""
+        SELECT DATE_FORMAT(created_at, '%b %Y') as month, 
+               COUNT(*) as count 
+        FROM incidents 
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY MIN(created_at) DESC
+        LIMIT 6
+    """)
+    monthly = cur.fetchall()
+
+    # Incidents by type
+    cur.execute("""
+        SELECT incident_type, COUNT(*) as count 
+        FROM incidents 
+        GROUP BY incident_type 
+        ORDER BY count DESC
+        LIMIT 8
+    """)
+    by_type = cur.fetchall()
+
+    # Incidents by severity
+    cur.execute("""
+        SELECT severity, COUNT(*) as count 
+        FROM incidents 
+        GROUP BY severity
+    """)
+    by_severity = cur.fetchall()
+
+    # Incidents by status
+    cur.execute("""
+        SELECT status, COUNT(*) as count 
+        FROM incidents 
+        GROUP BY status
+    """)
+    by_status = cur.fetchall()
+
+    # Resolution rate
+    cur.execute("SELECT COUNT(*) as total FROM incidents")
+    total = cur.fetchone()['total']
+    cur.execute("SELECT COUNT(*) as resolved FROM incidents WHERE status = 'Resolved'")
+    resolved = cur.fetchone()['resolved']
+
+    # Recent incidents
+    cur.execute("""
+        SELECT i.*, u.name AS reporter_name 
+        FROM incidents i 
+        JOIN users u ON i.user_id = u.id 
+        ORDER BY i.created_at DESC LIMIT 5
+    """)
+    recent = cur.fetchall()
+
+    cur.close()
+
+    return render_template('trends.html',
+        monthly=monthly,
+        by_type=by_type,
+        by_severity=by_severity,
+        by_status=by_status,
+        total=total,
+        resolved=resolved,
+        recent=recent
+    )
+
 if __name__ == '__main__':
     app.run(debug=True)

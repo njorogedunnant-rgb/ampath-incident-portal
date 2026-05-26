@@ -21,6 +21,9 @@
         <i class="fas fa-user me-1"></i>{{ session.name }}
         {% if session.role == 'admin' %}
           <span class="badge bg-warning text-dark ms-1">Admin</span>
+<a href="{{ url_for('trends') }}" class="btn btn-sm btn-outline-light ms-2">
+  <i class="fas fa-chart-line me-1"></i>Trends
+</a>
         {% endif %}
       </span>
       {% if session.role == 'staff' %}
