@@ -70,6 +70,30 @@
       </div>
     </div>
 
+    <!-- Feedback Panel -->
+    {% if incident.feedback_rating %}
+    <div class="card shadow-sm border-warning mb-4">
+      <div class="card-header bg-warning bg-opacity-10">
+        <h6 class="mb-0 fw-bold"><i class="fas fa-star me-2 text-warning"></i>User Feedback</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          {% for i in range(1, 6) %}
+            {% if i <= incident.feedback_rating %}
+              <i class="fas fa-star text-warning"></i>
+            {% else %}
+              <i class="far fa-star text-muted"></i>
+            {% endif %}
+          {% endfor %}
+          <span class="fw-bold ms-2">{{ incident.feedback_rating }}/5</span>
+        </div>
+        {% if incident.feedback_comment %}
+        <p class="text-muted mb-0 small">"{{ incident.feedback_comment }}"</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Admin Update Panel -->
     {% if session.role == 'admin' %}
     <div class="card shadow-sm border-warning">
