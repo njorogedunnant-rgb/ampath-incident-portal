@@ -121,11 +121,6 @@
                 <i class="fas fa-star"></i> Rate
               </a>
               {% endif %}
-              {% if i.status == 'Resolved' and session.role == 'staff' and not i.feedback_rating %}
-              <a href="{{ url_for('feedback', id=i.id) }}" class="btn btn-xs btn-warning ms-1">
-                <i class="fas fa-star"></i> Rate
-              </a>
-              {% endif %}
             </td>
           </tr>
           {% endfor %}
