@@ -4,6 +4,7 @@ blinker==1.9.0
 certifi==2026.5.20
 charset-normalizer==3.4.7
 click==8.4.0
+cloudinary==1.44.2
 Flask==2.3.3
 Flask-Mail==0.10.0
 Flask-MySQLdb==1.0.1
@@ -14,11 +15,13 @@ Jinja2==3.1.6
 MarkupSafe==3.0.3
 mysqlclient==2.2.8
 packaging==26.2
+pillow==12.2.0
 PyYAML==6.0.3
 requests==2.34.2
 resend==2.30.1
 responses==0.26.1
 schema==0.7.8
+six==1.17.0
 typing_extensions==4.15.0
 urllib3==2.7.0
 Werkzeug==3.1.8

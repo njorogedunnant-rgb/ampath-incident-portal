@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_mysqldb import MySQL
 import resend
+import cloudinary
+import cloudinary.uploader
 import africastalking
 from itsdangerous import URLSafeTimedSerializer
 import bcrypt
@@ -25,6 +27,12 @@ mysql = MySQL(app)
 # ── Mail Configuration ────────────────────────────────────────────────────────
 
 resend.api_key = os.environ.get("RESEND_API_KEY")
+
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET')
+)
 
 # Africa's Talking SMS
 africastalking.initialize(
@@ -230,13 +238,22 @@ def report_incident():
         impact        = request.form.get('impact', 'Low')
         priority      = calculate_priority(urgency, impact)
         assigned_to   = auto_assign(incident_type)
+        photo_url     = None
+        if 'photo' in request.files:
+            photo = request.files['photo']
+            if photo and photo.filename != '':
+                try:
+                    upload_result = cloudinary.uploader.upload(photo)
+                    photo_url = upload_result.get('secure_url')
+                except Exception as e:
+                    print(f"Photo upload error: {e}")
         if not all([incident_type, description, severity]):
             flash('Please fill in all required fields.', 'danger')
             return render_template('report.html')
         cur = mysql.connection.cursor()
         cur.execute(
-            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status, urgency, impact, priority, assigned_to) VALUES (%s, %s, %s, %s, %s, 'Open', %s, %s, %s, %s)",
-            (session['user_id'], incident_type, description, severity, location, urgency, impact, priority, assigned_to)
+            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status, urgency, impact, priority, assigned_to, photo) VALUES (%s, %s, %s, %s, %s, 'Open', %s, %s, %s, %s, %s)",
+            (session['user_id'], incident_type, description, severity, location, urgency, impact, priority, assigned_to, photo_url)
         )
         mysql.connection.commit()
         incident_id = cur.lastrowid

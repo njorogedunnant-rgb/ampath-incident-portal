@@ -54,6 +54,14 @@
             </div>
           </div>
           {% endif %}
+          {% if incident.photo %}
+          <div class="col-12">
+            <label class="small text-muted fw-semibold">ATTACHED PHOTO</label>
+            <div>
+              <img src="{{ incident.photo }}" class="img-fluid rounded" style="max-height: 400px;" alt="Incident Photo">
+            </div>
+          </div>
+          {% endif %}
           {% if incident.assigned_to %}
           <div class="col-md-6">
             <label class="small text-muted fw-semibold">ASSIGNED TO</label>
