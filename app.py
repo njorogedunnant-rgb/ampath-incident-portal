@@ -421,5 +421,79 @@ def feedback(id):
     cur.close()
     return render_template('feedback.html', incident=incident)
 
+
+@app.route('/knowledge-base')
+@login_required
+def knowledge_base():
+    search = request.args.get('search', '')
+    incident_type = request.args.get('incident_type', '')
+    cur = mysql.connection.cursor()
+    query = "SELECT * FROM knowledge_base WHERE 1=1"
+    params = []
+    if search:
+        query += " AND (title LIKE %s OR problem LIKE %s OR solution LIKE %s)"
+        params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+    if incident_type:
+        query += " AND incident_type = %s"
+        params.append(incident_type)
+    query += " ORDER BY created_at DESC"
+    cur.execute(query, params)
+    articles = cur.fetchall()
+    cur.close()
+    return render_template('knowledge_base.html', articles=articles, search=search, incident_type=incident_type)
+
+@app.route('/knowledge-base/create', methods=['GET', 'POST'])
+@admin_required
+def create_kb_article():
+    incident_id = request.args.get('incident_id')
+    incident = None
+    if incident_id:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM incidents WHERE id = %s", (incident_id,))
+        incident = cur.fetchone()
+        cur.close()
+    if request.method == 'POST':
+        title         = request.form.get('title', '').strip()
+        incident_type = request.form.get('incident_type', '').strip()
+        problem       = request.form.get('problem', '').strip()
+        solution      = request.form.get('solution', '').strip()
+        inc_id        = request.form.get('incident_id') or None
+        if not all([title, incident_type, problem, solution]):
+            flash('All fields are required.', 'danger')
+            return render_template('create_kb_article.html', incident=incident)
+        cur = mysql.connection.cursor()
+        cur.execute(
+            "INSERT INTO knowledge_base (title, incident_type, problem, solution, created_by, incident_id) VALUES (%s, %s, %s, %s, %s, %s)",
+            (title, incident_type, problem, solution, session['name'], inc_id)
+        )
+        mysql.connection.commit()
+        cur.close()
+        flash('Knowledge Base article created successfully!', 'success')
+        return redirect(url_for('knowledge_base'))
+    return render_template('create_kb_article.html', incident=incident)
+
+@app.route('/knowledge-base/<int:id>')
+@login_required
+def view_kb_article(id):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM knowledge_base WHERE id = %s", (id,))
+    article = cur.fetchone()
+    cur.close()
+    if not article:
+        flash('Article not found.', 'danger')
+        return redirect(url_for('knowledge_base'))
+    return render_template('view_kb_article.html', article=article)
+
+@app.route('/knowledge-base/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_kb_article(id):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM knowledge_base WHERE id = %s", (id,))
+    mysql.connection.commit()
+    cur.close()
+    flash('Article deleted.', 'success')
+    return redirect(url_for('knowledge_base'))
+
+
 if __name__ == '__main__':
     app.run(debug=True)

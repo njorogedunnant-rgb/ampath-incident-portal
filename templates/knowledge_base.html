@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Knowledge Base – AMPATH Portal{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0"><i class="fas fa-book me-2 text-primary"></i>Knowledge Base</h4>
+  {% if session.role == 'admin' %}
+  <a href="{{ url_for('create_kb_article') }}" class="btn btn-sm btn-primary">
+    <i class="fas fa-plus me-1"></i>New Article
+  </a>
+  {% endif %}
+</div>
+
+<!-- Search & Filter -->
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Search</label>
+        <input type="text" name="search" class="form-control form-control-sm"
+          placeholder="Search articles..." value="{{ search }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Filter by Type</label>
+        <select name="incident_type" class="form-select form-select-sm">
+          <option value="">All Types</option>
+          <option {% if incident_type=='Phishing / Suspicious Email' %}selected{% endif %}>Phishing / Suspicious Email</option>
+          <option {% if incident_type=='Malware / Virus Detected' %}selected{% endif %}>Malware / Virus Detected</option>
+          <option {% if incident_type=='Unauthorised Access Attempt' %}selected{% endif %}>Unauthorised Access Attempt</option>
+          <option {% if incident_type=='Data Breach / Leak' %}selected{% endif %}>Data Breach / Leak</option>
+          <option {% if incident_type=='Suspicious Network Activity' %}selected{% endif %}>Suspicious Network Activity</option>
+          <option {% if incident_type=='System Compromise' %}selected{% endif %}>System Compromise</option>
+          <option {% if incident_type=='Lost / Stolen Device' %}selected{% endif %}>Lost / Stolen Device</option>
+          <option {% if incident_type=='Password Compromise' %}selected{% endif %}>Password Compromise</option>
+          <option {% if incident_type=='Ransomware' %}selected{% endif %}>Ransomware</option>
+          <option {% if incident_type=='Other' %}selected{% endif %}>Other</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary btn-sm w-100">
+          <i class="fas fa-search me-1"></i>Search
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Articles -->
+{% if articles %}
+<div class="row g-3">
+  {% for article in articles %}
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="badge bg-primary bg-opacity-10 text-primary">{{ article.incident_type }}</span>
+          <small class="text-muted">{{ article.created_at.strftime('%d %b %Y') }}</small>
+        </div>
+        <h6 class="fw-bold mb-2">{{ article.title }}</h6>
+        <p class="text-muted small mb-3">{{ article.problem[:100] }}{% if article.problem|length > 100 %}...{% endif %}</p>
+        <div class="d-flex justify-content-between align-items-center">
+          <small class="text-muted"><i class="fas fa-user me-1"></i>{{ article.created_by }}</small>
+          <div>
+            <a href="{{ url_for('view_kb_article', id=article.id) }}" class="btn btn-xs btn-outline-primary">
+              <i class="fas fa-eye me-1"></i>Read
+            </a>
+            {% if session.role == 'admin' %}
+            <form method="POST" action="{{ url_for('delete_kb_article', id=article.id) }}" class="d-inline">
+              <button type="submit" class="btn btn-xs btn-outline-danger ms-1"
+                onclick="return confirm('Delete this article?')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="fas fa-book-open fa-3x mb-3 d-block"></i>
+  No articles found.
+  {% if session.role == 'admin' %}
+  <br><a href="{{ url_for('create_kb_article') }}" class="btn btn-primary btn-sm mt-3">Create First Article</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

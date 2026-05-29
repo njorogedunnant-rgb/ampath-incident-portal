@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Create KB Article – AMPATH Portal{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header">
+        <h5 class="mb-0 fw-bold">
+          <i class="fas fa-plus me-2 text-primary"></i>Create Knowledge Base Article
+        </h5>
+      </div>
+      <div class="card-body">
+        {% if incident %}
+        <div class="alert alert-info small">
+          <i class="fas fa-info-circle me-2"></i>
+          Creating article from Incident <strong>#{{ incident.id }} – {{ incident.incident_type }}</strong>
+        </div>
+        {% endif %}
+
+        <form method="POST">
+          {% if incident %}
+          <input type="hidden" name="incident_id" value="{{ incident.id }}">
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Article Title <span class="text-danger">*</span></label>
+            <input type="text" name="title" class="form-control"
+              placeholder="e.g. How to handle phishing emails"
+              value="{{ incident.incident_type ~ ' – Resolution Guide' if incident else '' }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Incident Type <span class="text-danger">*</span></label>
+            <select name="incident_type" class="form-select" required>
+              <option value="">Select type</option>
+              {% for t in ['Phishing / Suspicious Email', 'Malware / Virus Detected',
+                'Unauthorised Access Attempt', 'Data Breach / Leak',
+                'Suspicious Network Activity', 'System Compromise',
+                'Lost / Stolen Device', 'Password Compromise', 'Ransomware', 'Other'] %}
+              <option {% if incident and incident.incident_type == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Problem Description <span class="text-danger">*</span></label>
+            <textarea name="problem" class="form-control" rows="4" required
+              placeholder="Describe the problem in detail...">{{ incident.description if incident else '' }}</textarea>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Solution / Resolution Steps <span class="text-danger">*</span></label>
+            <textarea name="solution" class="form-control" rows="6" required
+              placeholder="Describe the solution and steps taken to resolve it...">{{ incident.admin_notes if incident and incident.admin_notes else '' }}</textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary fw-semibold px-4">
+              <i class="fas fa-save me-2"></i>Save Article
+            </button>
+            <a href="{{ url_for('knowledge_base') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

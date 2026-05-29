@@ -94,6 +94,15 @@
     </div>
     {% endif %}
 
+    <!-- Create KB Article -->
+    {% if session.role == 'admin' and incident.status == 'Resolved' %}
+    <div class="mb-4">
+      <a href="{{ url_for('create_kb_article', incident_id=incident.id) }}" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-book me-1"></i>Create KB Article from this Incident
+      </a>
+    </div>
+    {% endif %}
+
     <!-- Admin Update Panel -->
     {% if session.role == 'admin' %}
     <div class="card shadow-sm border-warning">
