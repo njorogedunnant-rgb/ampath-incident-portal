@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_mysqldb import MySQL
 import resend
+import africastalking
 from itsdangerous import URLSafeTimedSerializer
 import bcrypt
 import os
@@ -24,6 +25,13 @@ mysql = MySQL(app)
 # ── Mail Configuration ────────────────────────────────────────────────────────
 
 resend.api_key = os.environ.get("RESEND_API_KEY")
+
+# Africa's Talking SMS
+africastalking.initialize(
+    os.environ.get('AT_USERNAME', 'sandbox'),
+    os.environ.get('AT_API_KEY')
+)
+sms = africastalking.SMS
 s = URLSafeTimedSerializer(app.secret_key)
 # ── Auth Decorators ───────────────────────────────────────────────────────────
 
@@ -45,6 +53,17 @@ def auto_assign(incident_type):
         'Other': 'Alvin',
     }
     return routing.get(incident_type, 'Alvin')
+
+def send_sms_alert(priority, incident_type, incident_id):
+    if priority in ['P1', 'P2']:
+        phone = os.environ.get('AT_PHONE', '')
+        if phone:
+            message = f"AMPATH ALERT: {priority} Incident #{incident_id} - {incident_type} has been reported. Immediate attention required! Login to ampathreportsystem.up.railway.app"
+            try:
+                sms.send(message, [phone])
+                print(f"SMS alert sent for {priority} incident")
+            except Exception as e:
+                print(f"SMS error: {e}")
 
 def calculate_priority(urgency, impact):
     matrix = {
@@ -220,7 +239,9 @@ def report_incident():
             (session['user_id'], incident_type, description, severity, location, urgency, impact, priority, assigned_to)
         )
         mysql.connection.commit()
+        incident_id = cur.lastrowid
         cur.close()
+        send_sms_alert(priority, incident_type, incident_id)
         flash('Incident reported successfully! The ICT team has been notified.', 'success')
         return redirect(url_for('dashboard'))
     return render_template('report.html')
