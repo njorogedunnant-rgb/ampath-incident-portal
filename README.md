@@ -29,13 +29,6 @@ Then open your browser at: http://127.0.0.1:5000
 
 ---
 
-## Default Admin Login
-- Email: admin@ampath.org
-- Password: Admin@1234
-⚠️ Change this immediately after first login!
-
----
-
 ## Project Structure
 ```
 incident_portal/
