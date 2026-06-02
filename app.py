@@ -62,6 +62,30 @@ def auto_assign(incident_type):
     }
     return routing.get(incident_type, 'Alvin')
 
+# Team email mapping
+TEAM_EMAILS = {
+    'Victor': 'njorogedunnant@gmail.com',
+    'Donald': 'njorogedunnant@gmail.com',
+    'Denzel': 'njorogedunnant@gmail.com',
+    'Babu': 'njorogedunnant@gmail.com',
+    'Alvin': 'njorogedunnant@gmail.com',
+}
+
+def send_assignment_email(assigned_to, incident_type, priority, incident_id):
+    email = TEAM_EMAILS.get(assigned_to)
+    if email:
+        try:
+            body = f"Hello {assigned_to},\n\nA new {priority} incident has been assigned to you.\n\nIncident #{incident_id}: {incident_type}\n\nPlease log in to view and resolve it:\nhttps://ampathreportsystem.up.railway.app\n\nAMPATH ICT Portal"
+            resend.Emails.send({
+                "from": "onboarding@resend.dev",
+                "to": email,
+                "subject": f"[{priority}] New Incident Assigned – {incident_type}",
+                "text": body
+            })
+            print(f"Assignment email sent to {assigned_to}")
+        except Exception as e:
+            print(f"Email error: {e}")
+
 def send_sms_alert(priority, incident_type, incident_id):
     if priority in ['P1', 'P2']:
         phone = os.environ.get('AT_PHONE', '')
@@ -103,6 +127,17 @@ def admin_required(f):
             return redirect(url_for('login'))
         if session.get('role') != 'admin':
             flash('Access denied. Admins only.', 'danger')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated
+
+def technician_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        if session.get('role') not in ['admin', 'technician']:
+            flash('Access denied.', 'danger')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated
@@ -186,6 +221,8 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    if session.get('role') == 'technician':
+        return redirect(url_for('technician_dashboard'))
     cur = mysql.connection.cursor()
     if session['role'] == 'admin':
         # Admin sees all reports
@@ -259,6 +296,7 @@ def report_incident():
         incident_id = cur.lastrowid
         cur.close()
         send_sms_alert(priority, incident_type, incident_id)
+        send_assignment_email(assigned_to, incident_type, priority, incident_id)
         flash('Incident reported successfully! The ICT team has been notified.', 'success')
         return redirect(url_for('dashboard'))
     return render_template('report.html')
@@ -532,6 +570,53 @@ def delete_kb_article(id):
     flash('Article deleted.', 'success')
     return redirect(url_for('knowledge_base'))
 
+
+
+@app.route('/technician')
+@technician_required
+def technician_dashboard():
+    cur = mysql.connection.cursor()
+    
+    # Get incidents assigned to this technician
+    name = session.get('name')
+    status = request.args.get('status', '')
+    query = "SELECT i.*, u.name AS reporter_name FROM incidents i JOIN users u ON i.user_id = u.id WHERE i.assigned_to = %s"
+    params = [name]
+    if status:
+        query += " AND i.status = %s"
+        params.append(status)
+    query += " ORDER BY i.created_at DESC"
+    cur.execute(query, params)
+    incidents = cur.fetchall()
+
+    # Stats
+    cur.execute("SELECT COUNT(*) AS total FROM incidents WHERE assigned_to = %s", (name,))
+    total = cur.fetchone()['total']
+    cur.execute("SELECT COUNT(*) AS open FROM incidents WHERE assigned_to = %s AND status = 'Open'", (name,))
+    open_count = cur.fetchone()['open']
+    cur.execute("SELECT COUNT(*) AS inprogress FROM incidents WHERE assigned_to = %s AND status = 'In Progress'", (name,))
+    inprogress = cur.fetchone()['inprogress']
+    cur.execute("SELECT COUNT(*) AS resolved FROM incidents WHERE assigned_to = %s AND status = 'Resolved'", (name,))
+    resolved = cur.fetchone()['resolved']
+
+    cur.close()
+    return render_template('technician_dashboard.html', incidents=incidents,
+        total=total, open_count=open_count, inprogress=inprogress, resolved=resolved)
+
+@app.route('/technician/incident/<int:id>/update', methods=['POST'])
+@technician_required
+def technician_update_incident(id):
+    status = request.form.get('status', '')
+    notes  = request.form.get('admin_notes', '').strip()
+    cur = mysql.connection.cursor()
+    cur.execute(
+        "UPDATE incidents SET status = %s, admin_notes = %s WHERE id = %s AND assigned_to = %s",
+        (status, notes, id, session.get('name'))
+    )
+    mysql.connection.commit()
+    cur.close()
+    flash('Incident updated successfully.', 'success')
+    return redirect(url_for('technician_dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)
