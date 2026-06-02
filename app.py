@@ -279,11 +279,37 @@ def report_incident():
         if 'photo' in request.files:
             photo = request.files['photo']
             if photo and photo.filename != '':
-                try:
-                    upload_result = cloudinary.uploader.upload(photo)
-                    photo_url = upload_result.get('secure_url')
-                except Exception as e:
-                    print(f"Photo upload error: {e}")
+                # Validate file extension
+                allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+                file_ext = photo.filename.rsplit('.', 1)[-1].lower() if '.' in photo.filename else ''
+                # Validate MIME type
+                allowed_mimetypes = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+                # Check file size (max 5MB)
+                photo.seek(0, 2)
+                file_size = photo.tell()
+                photo.seek(0)
+                if file_ext not in allowed_extensions:
+                    flash('Invalid file type. Only JPG, PNG, GIF and WEBP images are allowed.', 'danger')
+                    return render_template('report.html')
+                elif file_size > 5 * 1024 * 1024:
+                    flash('File too large. Maximum size is 5MB.', 'danger')
+                    return render_template('report.html')
+                elif photo.mimetype not in allowed_mimetypes:
+                    flash('Invalid file type detected.', 'danger')
+                    return render_template('report.html')
+                else:
+                    try:
+                        upload_result = cloudinary.uploader.upload(
+                            photo,
+                            resource_type='image',
+                            allowed_formats=['jpg', 'jpeg', 'png', 'gif', 'webp'],
+                            max_bytes=5 * 1024 * 1024
+                        )
+                        photo_url = upload_result.get('secure_url')
+                    except Exception as e:
+                        print(f"Photo upload error: {e}")
+                        flash('Photo upload failed. Please try again.', 'danger')
+                        return render_template('report.html')
         if not all([incident_type, description, severity]):
             flash('Please fill in all required fields.', 'danger')
             return render_template('report.html')
