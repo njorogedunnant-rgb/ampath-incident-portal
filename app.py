@@ -710,5 +710,87 @@ def change_role(id):
     flash('User role updated successfully.', 'success')
     return redirect(url_for('manage_users'))
 
+
+@app.route('/export/excel')
+@admin_required
+def export_excel():
+    import openpyxl
+    from flask import make_response
+    import io
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT i.id, i.incident_type, u.name AS reporter, i.severity, i.priority, i.status, i.assigned_to, i.location, i.description, i.created_at FROM incidents i JOIN users u ON i.user_id = u.id ORDER BY i.created_at DESC")
+    incidents = cur.fetchall()
+    cur.close()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Incidents"
+    headers = ["ID", "Type", "Reporter", "Severity", "Priority", "Status", "Assigned To", "Location", "Description", "Date"]
+    from openpyxl.styles import Font, PatternFill, Alignment
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="0F4C81")
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+    for row, inc in enumerate(incidents, 2):
+        values = [inc["id"], inc["incident_type"], inc["reporter"], inc["severity"], inc["priority"], inc["status"], inc["assigned_to"], inc["location"], inc["description"], str(inc["created_at"])]
+        for col, value in enumerate(values, 1):
+            ws.cell(row=row, column=col, value=value)
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    response = make_response(output.read())
+    response.headers["Content-Disposition"] = "attachment; filename=AMPATH_Incidents.xlsx"
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
+@app.route("/export/pdf")
+@admin_required
+def export_pdf():
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from flask import make_response
+    import io
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT i.id, i.incident_type, u.name AS reporter, i.severity, i.priority, i.status, i.assigned_to, i.created_at FROM incidents i JOIN users u ON i.user_id = u.id ORDER BY i.created_at DESC")
+    incidents = cur.fetchall()
+    cur.close()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), topMargin=1.5*cm, bottomMargin=1.5*cm, leftMargin=1.5*cm, rightMargin=1.5*cm)
+    story = []
+    story.append(Paragraph("AMPATH Incident Reports", ParagraphStyle("title", fontSize=18, textColor=colors.HexColor("#0F4C81"), alignment=TA_CENTER, fontName="Helvetica-Bold", spaceAfter=8)))
+    story.append(Paragraph(f"Generated on {__import__('datetime').datetime.now().strftime('%d %B %Y %H:%M')}", ParagraphStyle("sub", fontSize=10, textColor=colors.HexColor("#6B7280"), alignment=TA_CENTER, fontName="Helvetica", spaceAfter=16)))
+    data = [["#", "Type", "Reporter", "Severity", "Priority", "Status", "Assigned To", "Date"]]
+    for inc in incidents:
+        data.append([str(inc["id"]), inc["incident_type"] or "", inc["reporter"] or "", inc["severity"] or "", inc["priority"] or "P5", inc["status"] or "", inc["assigned_to"] or "", str(inc["created_at"])[:10]])
+    t = Table(data, colWidths=[1*cm, 5*cm, 3.5*cm, 2.5*cm, 2*cm, 3*cm, 3.5*cm, 3*cm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0F4C81")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTNAME", (0,1), (-1,-1), "Helvetica"),
+        ("FONTSIZE", (0,0), (-1,-1), 8),
+        ("ROWPADDING", (0,0), (-1,-1), 5),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#E5E7EB")),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#E8F0FB")]),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(t)
+    doc.build(story)
+    buffer.seek(0)
+    response = make_response(buffer.read())
+    response.headers["Content-Disposition"] = "attachment; filename=AMPATH_Incidents.pdf"
+    response.headers["Content-Type"] = "application/pdf"
+    return response
+
 if __name__ == '__main__':
     app.run(debug=True)
