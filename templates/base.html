@@ -45,6 +45,11 @@
       <a href="{{ url_for('knowledge_base') }}" class="btn btn-sm btn-outline-light">
         <i class="fas fa-book me-1"></i>KB
       </a>
+      {% if session.role == 'admin' %}
+      <a href="{{ url_for('manage_users') }}" class="btn btn-sm btn-outline-light">
+        <i class="fas fa-users me-1"></i>Users
+      </a>
+      {% endif %}
       <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">
         <i class="fas fa-sign-out-alt me-1"></i>Logout
       </a>

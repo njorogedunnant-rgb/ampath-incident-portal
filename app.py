@@ -644,5 +644,71 @@ def technician_update_incident(id):
     flash('Incident updated successfully.', 'success')
     return redirect(url_for('technician_dashboard'))
 
+
+@app.route('/users')
+@admin_required
+def manage_users():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, name, email, department, role, created_at FROM users ORDER BY role, name")
+    users = cur.fetchall()
+    cur.close()
+    return render_template('manage_users.html', users=users)
+
+@app.route('/users/create', methods=['GET', 'POST'])
+@admin_required
+def create_user():
+    if request.method == 'POST':
+        name     = request.form.get('name', '').strip()
+        email    = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        dept     = request.form.get('department', '').strip()
+        role     = request.form.get('role', 'staff')
+        if not all([name, email, password, dept]):
+            flash('All fields are required.', 'danger')
+            return render_template('create_user.html')
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        if cur.fetchone():
+            flash('An account with that email already exists.', 'danger')
+            cur.close()
+            return render_template('create_user.html')
+        hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        cur.execute(
+            "INSERT INTO users (name, email, password, department, role) VALUES (%s, %s, %s, %s, %s)",
+            (name, email, hashed.decode('utf-8'), dept, role)
+        )
+        mysql.connection.commit()
+        cur.close()
+        flash(f'Account for {name} created successfully!', 'success')
+        return redirect(url_for('manage_users'))
+    return render_template('create_user.html')
+
+@app.route('/users/<int:id>/delete', methods=['POST'])
+@admin_required
+def delete_user(id):
+    if id == session['user_id']:
+        flash('You cannot delete your own account.', 'danger')
+        return redirect(url_for('manage_users'))
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM users WHERE id = %s", (id,))
+    mysql.connection.commit()
+    cur.close()
+    flash('User deleted successfully.', 'success')
+    return redirect(url_for('manage_users'))
+
+@app.route('/users/<int:id>/role', methods=['POST'])
+@admin_required
+def change_role(id):
+    role = request.form.get('role', 'staff')
+    if id == session['user_id']:
+        flash('You cannot change your own role.', 'danger')
+        return redirect(url_for('manage_users'))
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE users SET role = %s WHERE id = %s", (role, id))
+    mysql.connection.commit()
+    cur.close()
+    flash('User role updated successfully.', 'success')
+    return redirect(url_for('manage_users'))
+
 if __name__ == '__main__':
     app.run(debug=True)
