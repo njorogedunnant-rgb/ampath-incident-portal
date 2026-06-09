@@ -69,7 +69,7 @@ def send_assignment_email(assigned_to, incident_type, priority, incident_id):
     email = TEAM_EMAILS.get(assigned_to)
     if email:
         try:
-            body = f"Hello {assigned_to},\n\nA new {priority} incident has been assigned to you.\n\nIncident #{incident_id}: {incident_type}\n\nPlease log in to view and resolve it:\nhttps://ampathreportsystem.up.railway.app\n\nAMPATH ICT Portal"
+            body = f"Hello {assigned_to},\n\nA new {priority} incident has been assigned to you.\n\nIncident #{incident_id}: {incident_type}\n\nPlease log in to view and resolve it:\nhttps://ampath-incident-portal.onrender.com\n\nAMPATH ICT Portal"
             resend.Emails.send({
                 "from": "onboarding@resend.dev",
                 "to": email,
