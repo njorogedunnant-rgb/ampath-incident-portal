@@ -146,35 +146,6 @@ def index():
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        name     = request.form.get('name', '').strip()
-        email    = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        dept     = request.form.get('department', '').strip()
-        if not all([name, email, password, dept]):
-            flash('All fields are required.', 'danger')
-            return render_template('register.html')
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
-        if cur.fetchone():
-            flash('An account with that email already exists.', 'danger')
-            cur.close(); conn.close()
-            return render_template('register.html')
-        hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        cur.execute(
-            "INSERT INTO users (name, email, password, department, role) VALUES (%s, %s, %s, %s, 'staff')",
-            (name, email, hashed.decode('utf-8'), dept)
-        )
-        conn.commit()
-        cur.close(); conn.close()
-        flash('Account created successfully! Please log in.', 'success')
-        return redirect(url_for('login'))
-    return render_template('register.html')
-
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
