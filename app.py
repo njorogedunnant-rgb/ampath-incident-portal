@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask_mysqldb import MySQL
+import psycopg2
+import psycopg2.extras
 import resend
 import cloudinary
 import cloudinary.uploader
@@ -11,20 +12,18 @@ from datetime import timedelta
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'ampath_secret_change_this_in_production'
-app.permanent_session_lifetime = timedelta(minutes=30)  # Session timeout after 30 min
+app.secret_key = os.environ.get('SECRET_KEY', 'ampath_secret_change_this_in_production')
+app.permanent_session_lifetime = timedelta(minutes=30)
 
-# ── MySQL Configuration ───────────────────────────────────────────────────────
+# ── PostgreSQL Configuration ──────────────────────────────────────────────────
 
-app.config['MYSQL_HOST'] = os.environ.get('MYSQLHOST', 'localhost')
-app.config['MYSQL_USER'] = os.environ.get('MYSQLUSER', 'portal_user')
-app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQLPASSWORD', 'portal123')
-app.config['MYSQL_DB'] = os.environ.get('MYSQLDATABASE', 'railway')
-app.config['MYSQL_PORT'] = int(os.environ.get('MYSQLPORT', 3306))
-app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
-mysql = MySQL(app)
-# ── Mail Configuration ────────────────────────────────────────────────────────
+def get_db():
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+    return conn
+
+# ── External Services ─────────────────────────────────────────────────────────
 
 resend.api_key = os.environ.get("RESEND_API_KEY")
 
@@ -34,18 +33,14 @@ cloudinary.config(
     api_secret=os.environ.get('CLOUDINARY_API_SECRET')
 )
 
-# Africa's Talking SMS
 africastalking.initialize(
     os.environ.get('AT_USERNAME', 'sandbox'),
     os.environ.get('AT_API_KEY')
 )
 sms = africastalking.SMS
 s = URLSafeTimedSerializer(app.secret_key)
-# ── Auth Decorators ───────────────────────────────────────────────────────────
 
-
-
-
+# ── Helper Functions ──────────────────────────────────────────────────────────
 
 def auto_assign(incident_type):
     routing = {
@@ -62,7 +57,6 @@ def auto_assign(incident_type):
     }
     return routing.get(incident_type, 'Alvin')
 
-# Team email mapping
 TEAM_EMAILS = {
     'Victor': 'njorogedunnant@gmail.com',
     'Donald': 'njorogedunnant@gmail.com',
@@ -82,7 +76,6 @@ def send_assignment_email(assigned_to, incident_type, priority, incident_id):
                 "subject": f"[{priority}] New Incident Assigned – {incident_type}",
                 "text": body
             })
-            print(f"Assignment email sent to {assigned_to}")
         except Exception as e:
             print(f"Email error: {e}")
 
@@ -90,10 +83,9 @@ def send_sms_alert(priority, incident_type, incident_id):
     if priority in ['P1', 'P2']:
         phone = os.environ.get('AT_PHONE', '')
         if phone:
-            message = f"AMPATH ALERT: {priority} Incident #{incident_id} - {incident_type} has been reported. Immediate attention required! Login to ampathreportsystem.up.railway.app"
+            message = f"AMPATH ALERT: {priority} Incident #{incident_id} - {incident_type} has been reported. Immediate attention required!"
             try:
                 sms.send(message, [phone])
-                print(f"SMS alert sent for {priority} incident")
             except Exception as e:
                 print(f"SMS error: {e}")
 
@@ -110,6 +102,8 @@ def calculate_priority(urgency, impact):
         ('Low', 'Low'): 'P5',
     }
     return matrix.get((urgency, impact), 'P5')
+
+# ── Auth Decorators ───────────────────────────────────────────────────────────
 
 def login_required(f):
     @wraps(f)
@@ -159,30 +153,25 @@ def register():
         email    = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         dept     = request.form.get('department', '').strip()
-
         if not all([name, email, password, dept]):
             flash('All fields are required.', 'danger')
             return render_template('register.html')
-
-        # Check if email already exists
-        cur = mysql.connection.cursor()
+        conn = get_db()
+        cur = conn.cursor()
         cur.execute("SELECT id FROM users WHERE email = %s", (email,))
         if cur.fetchone():
             flash('An account with that email already exists.', 'danger')
-            cur.close()
+            cur.close(); conn.close()
             return render_template('register.html')
-
-        # Hash password
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         cur.execute(
             "INSERT INTO users (name, email, password, department, role) VALUES (%s, %s, %s, %s, 'staff')",
             (name, email, hashed.decode('utf-8'), dept)
         )
-        mysql.connection.commit()
-        cur.close()
+        conn.commit()
+        cur.close(); conn.close()
         flash('Account created successfully! Please log in.', 'success')
         return redirect(url_for('login'))
-
     return render_template('register.html')
 
 
@@ -191,12 +180,11 @@ def login():
     if request.method == 'POST':
         email    = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-
-        cur = mysql.connection.cursor()
+        conn = get_db()
+        cur = conn.cursor()
         cur.execute("SELECT * FROM users WHERE email = %s", (email,))
         user = cur.fetchone()
-        cur.close()
-
+        cur.close(); conn.close()
         if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
             session.permanent = True
             session['user_id'] = user['id']
@@ -206,7 +194,6 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid email or password.', 'danger')
-
     return render_template('login.html')
 
 
@@ -223,9 +210,9 @@ def logout():
 def dashboard():
     if session.get('role') == 'technician':
         return redirect(url_for('technician_dashboard'))
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     if session['role'] == 'admin':
-        # Admin sees all reports
         severity = request.args.get('severity', '')
         status   = request.args.get('status', '')
         query    = "SELECT i.*, u.name AS reporter_name FROM incidents i JOIN users u ON i.user_id = u.id WHERE 1=1"
@@ -239,14 +226,11 @@ def dashboard():
         query += " ORDER BY i.created_at DESC"
         cur.execute(query, params)
     else:
-        # Staff sees only their own reports
         cur.execute(
             "SELECT * FROM incidents WHERE user_id = %s ORDER BY created_at DESC",
             (session['user_id'],)
         )
     incidents = cur.fetchall()
-
-    # Stats for admin
     stats = {}
     if session['role'] == 'admin':
         cur.execute("SELECT COUNT(*) AS total FROM incidents")
@@ -257,8 +241,7 @@ def dashboard():
         stats['critical'] = cur.fetchone()['critical']
         cur.execute("SELECT COUNT(*) AS resolved FROM incidents WHERE status = 'Resolved'")
         stats['resolved'] = cur.fetchone()['resolved']
-
-    cur.close()
+    cur.close(); conn.close()
     return render_template('dashboard.html', incidents=incidents, stats=stats)
 
 # ── Report Incident ───────────────────────────────────────────────────────────
@@ -279,12 +262,9 @@ def report_incident():
         if 'photo' in request.files:
             photo = request.files['photo']
             if photo and photo.filename != '':
-                # Validate file extension
                 allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
                 file_ext = photo.filename.rsplit('.', 1)[-1].lower() if '.' in photo.filename else ''
-                # Validate MIME type
                 allowed_mimetypes = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
-                # Check file size (max 5MB)
                 photo.seek(0, 2)
                 file_size = photo.tell()
                 photo.seek(0)
@@ -313,14 +293,15 @@ def report_incident():
         if not all([incident_type, description, severity]):
             flash('Please fill in all required fields.', 'danger')
             return render_template('report.html')
-        cur = mysql.connection.cursor()
+        conn = get_db()
+        cur = conn.cursor()
         cur.execute(
-            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status, urgency, impact, priority, assigned_to, photo) VALUES (%s, %s, %s, %s, %s, 'Open', %s, %s, %s, %s, %s)",
+            "INSERT INTO incidents (user_id, incident_type, description, severity, location, status, urgency, impact, priority, assigned_to, photo) VALUES (%s, %s, %s, %s, %s, 'Open', %s, %s, %s, %s, %s) RETURNING id",
             (session['user_id'], incident_type, description, severity, location, urgency, impact, priority, assigned_to, photo_url)
         )
-        mysql.connection.commit()
-        incident_id = cur.lastrowid
-        cur.close()
+        incident_id = cur.fetchone()['id']
+        conn.commit()
+        cur.close(); conn.close()
         send_sms_alert(priority, incident_type, incident_id)
         send_assignment_email(assigned_to, incident_type, priority, incident_id)
         flash('Incident reported successfully! The ICT team has been notified.', 'success')
@@ -333,14 +314,14 @@ def update_incident(id):
     status   = request.form.get('status', '')
     assignee = request.form.get('assignee', '').strip()
     notes    = request.form.get('admin_notes', '').strip()
-
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute(
         "UPDATE incidents SET status = %s, assigned_to = %s, admin_notes = %s WHERE id = %s",
         (status, assignee, notes, id)
     )
-    mysql.connection.commit()
-    cur.close()
+    conn.commit()
+    cur.close(); conn.close()
     flash('Incident updated successfully.', 'success')
     return redirect(url_for('dashboard'))
 
@@ -348,39 +329,38 @@ def update_incident(id):
 @app.route('/incident/<int:id>')
 @login_required
 def view_incident(id):
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute(
         "SELECT i.*, u.name AS reporter_name, u.department FROM incidents i JOIN users u ON i.user_id = u.id WHERE i.id = %s",
         (id,)
     )
     incident = cur.fetchone()
-    cur.close()
-
+    cur.close(); conn.close()
     if not incident:
         flash('Incident not found.', 'danger')
         return redirect(url_for('dashboard'))
-
-    # Staff can only view their own
     if session['role'] != 'admin' and incident['user_id'] != session['user_id']:
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard'))
-
     return render_template('view_incident.html', incident=incident)
 
 # ── Forgot Password ───────────────────────────────────────────────────────────
+
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         try:
-            cur = mysql.connection.cursor()
+            conn = get_db()
+            cur = conn.cursor()
             cur.execute("SELECT * FROM users WHERE email = %s", (email,))
             user = cur.fetchone()
-            cur.close()
+            cur.close(); conn.close()
             if user:
                 token = s.dumps(email, salt='password-reset')
                 reset_url = url_for('reset_password_page', token=token, _external=True)
-                body = "Hello " + user['name'] + ",\n\nClick the link below to reset your password (valid for 30 minutes):\n" + reset_url + "\n\nAMPATH ICT Team"
+                body = f"Hello {user['name']},\n\nClick the link below to reset your password (valid for 30 minutes):\n{reset_url}\n\nAMPATH ICT Team"
                 resend.Emails.send({
                     "from": "onboarding@resend.dev",
                     "to": email,
@@ -402,138 +382,122 @@ def reset_password_page(token):
     except:
         flash('The reset link is invalid or has expired.', 'danger')
         return redirect(url_for('forgot_password'))
-
     if request.method == 'POST':
         password = request.form.get('password', '')
         if len(password) < 8:
             flash('Password must be at least 8 characters.', 'danger')
             return render_template('reset_password.html', token=token)
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE users SET password = %s WHERE email = %s",
-                    (hashed.decode('utf-8'), email))
-        mysql.connection.commit()
-        cur.close()
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET password = %s WHERE email = %s", (hashed.decode('utf-8'), email))
+        conn.commit()
+        cur.close(); conn.close()
         flash('Password reset successfully! Please log in.', 'success')
         return redirect(url_for('login'))
-
     return render_template('reset_password.html', token=token)
+
+# ── Trends ────────────────────────────────────────────────────────────────────
 
 @app.route('/trends')
 @admin_required
 def trends():
-    cur = mysql.connection.cursor()
-    
-    # Incidents per month
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Incidents per month (PostgreSQL syntax)
     cur.execute("""
-        SELECT DATE_FORMAT(MIN(created_at), '%b %Y') as month, 
-               COUNT(*) as count 
-        FROM incidents 
-        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-        ORDER BY DATE_FORMAT(created_at, '%Y-%m') DESC
+        SELECT TO_CHAR(MIN(created_at), 'Mon YYYY') as month,
+               COUNT(*) as count
+        FROM incidents
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+        ORDER BY TO_CHAR(created_at, 'YYYY-MM') DESC
         LIMIT 6
     """)
     monthly = cur.fetchall()
 
-    # Incidents by type
     cur.execute("""
-        SELECT incident_type, COUNT(*) as count 
-        FROM incidents 
-        GROUP BY incident_type 
+        SELECT incident_type, COUNT(*) as count
+        FROM incidents
+        GROUP BY incident_type
         ORDER BY count DESC
         LIMIT 8
     """)
     by_type = cur.fetchall()
 
-    # Incidents by severity
-    cur.execute("""
-        SELECT severity, COUNT(*) as count 
-        FROM incidents 
-        GROUP BY severity
-    """)
+    cur.execute("SELECT severity, COUNT(*) as count FROM incidents GROUP BY severity")
     by_severity = cur.fetchall()
 
-    # Incidents by status
-    cur.execute("""
-        SELECT status, COUNT(*) as count 
-        FROM incidents 
-        GROUP BY status
-    """)
+    cur.execute("SELECT status, COUNT(*) as count FROM incidents GROUP BY status")
     by_status = cur.fetchall()
 
-    # Resolution rate
     cur.execute("SELECT COUNT(*) as total FROM incidents")
     total = cur.fetchone()['total']
+
     cur.execute("SELECT COUNT(*) as resolved FROM incidents WHERE status = 'Resolved'")
     resolved = cur.fetchone()['resolved']
 
-    # Recent incidents
     cur.execute("""
-        SELECT i.*, u.name AS reporter_name 
-        FROM incidents i 
-        JOIN users u ON i.user_id = u.id 
+        SELECT i.*, u.name AS reporter_name
+        FROM incidents i
+        JOIN users u ON i.user_id = u.id
         ORDER BY i.created_at DESC LIMIT 5
     """)
     recent = cur.fetchall()
 
-    cur.close()
-
+    cur.close(); conn.close()
     return render_template('trends.html',
-        monthly=monthly,
-        by_type=by_type,
-        by_severity=by_severity,
-        by_status=by_status,
-        total=total,
-        resolved=resolved,
-        recent=recent
-    )
+        monthly=monthly, by_type=by_type, by_severity=by_severity,
+        by_status=by_status, total=total, resolved=resolved, recent=recent)
 
+# ── Feedback ──────────────────────────────────────────────────────────────────
 
 @app.route('/incident/<int:id>/feedback', methods=['GET', 'POST'])
 @login_required
 def feedback(id):
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT * FROM incidents WHERE id = %s AND user_id = %s", (id, session['user_id']))
     incident = cur.fetchone()
-
     if not incident:
         flash('Incident not found or access denied.', 'danger')
+        cur.close(); conn.close()
         return redirect(url_for('dashboard'))
-
     if incident['status'] != 'Resolved':
         flash('You can only give feedback on resolved incidents.', 'warning')
+        cur.close(); conn.close()
         return redirect(url_for('dashboard'))
-
     if incident['feedback_rating']:
         flash('You have already submitted feedback for this incident.', 'info')
+        cur.close(); conn.close()
         return redirect(url_for('dashboard'))
-
     if request.method == 'POST':
-        rating = request.form.get('rating')
+        rating  = request.form.get('rating')
         comment = request.form.get('comment', '').strip()
         cur.execute(
             "UPDATE incidents SET feedback_rating = %s, feedback_comment = %s WHERE id = %s",
             (rating, comment, id)
         )
-        mysql.connection.commit()
-        cur.close()
+        conn.commit()
+        cur.close(); conn.close()
         flash('Thank you for your feedback!', 'success')
         return redirect(url_for('dashboard'))
-
-    cur.close()
+    cur.close(); conn.close()
     return render_template('feedback.html', incident=incident)
 
+# ── Knowledge Base ────────────────────────────────────────────────────────────
 
 @app.route('/knowledge-base')
 @login_required
 def knowledge_base():
     search = request.args.get('search', '')
     incident_type = request.args.get('incident_type', '')
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     query = "SELECT * FROM knowledge_base WHERE 1=1"
     params = []
     if search:
-        query += " AND (title LIKE %s OR problem LIKE %s OR solution LIKE %s)"
+        query += " AND (title ILIKE %s OR problem ILIKE %s OR solution ILIKE %s)"
         params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
     if incident_type:
         query += " AND incident_type = %s"
@@ -541,7 +505,7 @@ def knowledge_base():
     query += " ORDER BY created_at DESC"
     cur.execute(query, params)
     articles = cur.fetchall()
-    cur.close()
+    cur.close(); conn.close()
     return render_template('knowledge_base.html', articles=articles, search=search, incident_type=incident_type)
 
 @app.route('/knowledge-base/create', methods=['GET', 'POST'])
@@ -550,10 +514,11 @@ def create_kb_article():
     incident_id = request.args.get('incident_id')
     incident = None
     if incident_id:
-        cur = mysql.connection.cursor()
+        conn = get_db()
+        cur = conn.cursor()
         cur.execute("SELECT * FROM incidents WHERE id = %s", (incident_id,))
         incident = cur.fetchone()
-        cur.close()
+        cur.close(); conn.close()
     if request.method == 'POST':
         title         = request.form.get('title', '').strip()
         incident_type = request.form.get('incident_type', '').strip()
@@ -563,13 +528,14 @@ def create_kb_article():
         if not all([title, incident_type, problem, solution]):
             flash('All fields are required.', 'danger')
             return render_template('create_kb_article.html', incident=incident)
-        cur = mysql.connection.cursor()
+        conn = get_db()
+        cur = conn.cursor()
         cur.execute(
             "INSERT INTO knowledge_base (title, incident_type, problem, solution, created_by, incident_id) VALUES (%s, %s, %s, %s, %s, %s)",
             (title, incident_type, problem, solution, session['name'], inc_id)
         )
-        mysql.connection.commit()
-        cur.close()
+        conn.commit()
+        cur.close(); conn.close()
         flash('Knowledge Base article created successfully!', 'success')
         return redirect(url_for('knowledge_base'))
     return render_template('create_kb_article.html', incident=incident)
@@ -577,10 +543,11 @@ def create_kb_article():
 @app.route('/knowledge-base/<int:id>')
 @login_required
 def view_kb_article(id):
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT * FROM knowledge_base WHERE id = %s", (id,))
     article = cur.fetchone()
-    cur.close()
+    cur.close(); conn.close()
     if not article:
         flash('Article not found.', 'danger')
         return redirect(url_for('knowledge_base'))
@@ -589,24 +556,24 @@ def view_kb_article(id):
 @app.route('/knowledge-base/<int:id>/delete', methods=['POST'])
 @admin_required
 def delete_kb_article(id):
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("DELETE FROM knowledge_base WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cur.close()
+    conn.commit()
+    cur.close(); conn.close()
     flash('Article deleted.', 'success')
     return redirect(url_for('knowledge_base'))
 
-
+# ── Technician Dashboard ──────────────────────────────────────────────────────
 
 @app.route('/technician')
 @technician_required
 def technician_dashboard():
-    cur = mysql.connection.cursor()
-    
-    # Get incidents assigned to this technician
-    name = session.get('name')
+    conn = get_db()
+    cur = conn.cursor()
+    name   = session.get('name')
     status = request.args.get('status', '')
-    query = "SELECT i.*, u.name AS reporter_name FROM incidents i JOIN users u ON i.user_id = u.id WHERE i.assigned_to = %s"
+    query  = "SELECT i.*, u.name AS reporter_name FROM incidents i JOIN users u ON i.user_id = u.id WHERE i.assigned_to = %s"
     params = [name]
     if status:
         query += " AND i.status = %s"
@@ -614,8 +581,6 @@ def technician_dashboard():
     query += " ORDER BY i.created_at DESC"
     cur.execute(query, params)
     incidents = cur.fetchall()
-
-    # Stats
     cur.execute("SELECT COUNT(*) AS total FROM incidents WHERE assigned_to = %s", (name,))
     total = cur.fetchone()['total']
     cur.execute("SELECT COUNT(*) AS open FROM incidents WHERE assigned_to = %s AND status = 'Open'", (name,))
@@ -624,8 +589,7 @@ def technician_dashboard():
     inprogress = cur.fetchone()['inprogress']
     cur.execute("SELECT COUNT(*) AS resolved FROM incidents WHERE assigned_to = %s AND status = 'Resolved'", (name,))
     resolved = cur.fetchone()['resolved']
-
-    cur.close()
+    cur.close(); conn.close()
     return render_template('technician_dashboard.html', incidents=incidents,
         total=total, open_count=open_count, inprogress=inprogress, resolved=resolved)
 
@@ -634,24 +598,27 @@ def technician_dashboard():
 def technician_update_incident(id):
     status = request.form.get('status', '')
     notes  = request.form.get('admin_notes', '').strip()
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute(
         "UPDATE incidents SET status = %s, admin_notes = %s WHERE id = %s AND assigned_to = %s",
         (status, notes, id, session.get('name'))
     )
-    mysql.connection.commit()
-    cur.close()
+    conn.commit()
+    cur.close(); conn.close()
     flash('Incident updated successfully.', 'success')
     return redirect(url_for('technician_dashboard'))
 
+# ── User Management ───────────────────────────────────────────────────────────
 
 @app.route('/users')
 @admin_required
 def manage_users():
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT id, name, email, department, role, created_at FROM users ORDER BY role, name")
     users = cur.fetchall()
-    cur.close()
+    cur.close(); conn.close()
     return render_template('manage_users.html', users=users)
 
 @app.route('/users/create', methods=['GET', 'POST'])
@@ -666,19 +633,20 @@ def create_user():
         if not all([name, email, password, dept]):
             flash('All fields are required.', 'danger')
             return render_template('create_user.html')
-        cur = mysql.connection.cursor()
+        conn = get_db()
+        cur = conn.cursor()
         cur.execute("SELECT id FROM users WHERE email = %s", (email,))
         if cur.fetchone():
             flash('An account with that email already exists.', 'danger')
-            cur.close()
+            cur.close(); conn.close()
             return render_template('create_user.html')
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         cur.execute(
             "INSERT INTO users (name, email, password, department, role) VALUES (%s, %s, %s, %s, %s)",
             (name, email, hashed.decode('utf-8'), dept, role)
         )
-        mysql.connection.commit()
-        cur.close()
+        conn.commit()
+        cur.close(); conn.close()
         flash(f'Account for {name} created successfully!', 'success')
         return redirect(url_for('manage_users'))
     return render_template('create_user.html')
@@ -689,10 +657,11 @@ def delete_user(id):
     if id == session['user_id']:
         flash('You cannot delete your own account.', 'danger')
         return redirect(url_for('manage_users'))
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("DELETE FROM users WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cur.close()
+    conn.commit()
+    cur.close(); conn.close()
     flash('User deleted successfully.', 'success')
     return redirect(url_for('manage_users'))
 
@@ -703,13 +672,15 @@ def change_role(id):
     if id == session['user_id']:
         flash('You cannot change your own role.', 'danger')
         return redirect(url_for('manage_users'))
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("UPDATE users SET role = %s WHERE id = %s", (role, id))
-    mysql.connection.commit()
-    cur.close()
+    conn.commit()
+    cur.close(); conn.close()
     flash('User role updated successfully.', 'success')
     return redirect(url_for('manage_users'))
 
+# ── Export ────────────────────────────────────────────────────────────────────
 
 @app.route('/export/excel')
 @admin_required
@@ -717,10 +688,11 @@ def export_excel():
     import openpyxl
     from flask import make_response
     import io
-    cur = mysql.connection.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT i.id, i.incident_type, u.name AS reporter, i.severity, i.priority, i.status, i.assigned_to, i.location, i.description, i.created_at FROM incidents i JOIN users u ON i.user_id = u.id ORDER BY i.created_at DESC")
     incidents = cur.fetchall()
-    cur.close()
+    cur.close(); conn.close()
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Incidents"
@@ -758,16 +730,17 @@ def export_pdf():
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_CENTER
     from flask import make_response
-    import io
-    cur = mysql.connection.cursor()
+    import io, datetime
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT i.id, i.incident_type, u.name AS reporter, i.severity, i.priority, i.status, i.assigned_to, i.created_at FROM incidents i JOIN users u ON i.user_id = u.id ORDER BY i.created_at DESC")
     incidents = cur.fetchall()
-    cur.close()
+    cur.close(); conn.close()
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), topMargin=1.5*cm, bottomMargin=1.5*cm, leftMargin=1.5*cm, rightMargin=1.5*cm)
     story = []
     story.append(Paragraph("AMPATH Incident Reports", ParagraphStyle("title", fontSize=18, textColor=colors.HexColor("#0F4C81"), alignment=TA_CENTER, fontName="Helvetica-Bold", spaceAfter=8)))
-    story.append(Paragraph(f"Generated on {__import__('datetime').datetime.now().strftime('%d %B %Y %H:%M')}", ParagraphStyle("sub", fontSize=10, textColor=colors.HexColor("#6B7280"), alignment=TA_CENTER, fontName="Helvetica", spaceAfter=16)))
+    story.append(Paragraph(f"Generated on {datetime.datetime.now().strftime('%d %B %Y %H:%M')}", ParagraphStyle("sub", fontSize=10, textColor=colors.HexColor("#6B7280"), alignment=TA_CENTER, fontName="Helvetica", spaceAfter=16)))
     data = [["#", "Type", "Reporter", "Severity", "Priority", "Status", "Assigned To", "Date"]]
     for inc in incidents:
         data.append([str(inc["id"]), inc["incident_type"] or "", inc["reporter"] or "", inc["severity"] or "", inc["priority"] or "P5", inc["status"] or "", inc["assigned_to"] or "", str(inc["created_at"])[:10]])
